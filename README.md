@@ -64,11 +64,14 @@ BlindWalkAssistant/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/BlindWalkAssistant.git
+git clone https://github.com/BlindWalkAssistant/blindwalk_tracker_assistant.git
+
 ```
+### Go inside project directory
 ```bash
-cd BlindWalkAssistant
+cd blindwalk_tracker_assistant
 ```
+
 
 
 ###  instal dependencies
