@@ -1,0 +1,4 @@
+model_path: models/best.pt
+confidence: 0.4
+camera: 0
+voice_alert: true
