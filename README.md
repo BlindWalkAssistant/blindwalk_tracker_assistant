@@ -38,18 +38,21 @@ An AI-powered real-time object detection and voice guidance system designed to a
 ---
 
 ## 📂 Project Structure
+
+```
 BlindWalkAssistant/
 │── models/
-│ └── best.pt
+│   └── best.pt
 │
 │── src/
-│ ├── voice_alert.py
-│ ├── distance_estimator.py
-│ └── utils.py
+│   ├── voice_alert.py
+│   ├── distance_estimator.py
+│   └── utils.py
 │
 │── main.py
 │── requirements.txt
 │── README.md
+```
 
 
 
