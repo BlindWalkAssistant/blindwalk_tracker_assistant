@@ -12,6 +12,7 @@ def voice_worker():
         text = speech_queue.get()
         if text is None:
             break
+
         engine.say(text)
         engine.runAndWait()
         speech_queue.task_done()

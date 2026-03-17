@@ -1,13 +1,12 @@
 def estimate_distance(box_height):
 
-    if box_height > 350:
-        return "very close"
+    # Approximate parameters
+    focal_length = 700
+    real_object_height = 1.7   # meters (approx human height)
 
-    elif box_height > 200:
-        return "near"
+    if box_height == 0:
+        return 0
 
-    elif box_height > 120:
-        return "far"
+    distance = (real_object_height * focal_length) / box_height
 
-    else:
-        return "very far"
+    return distance
