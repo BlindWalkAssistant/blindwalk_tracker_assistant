@@ -2,7 +2,9 @@ import cv2
 import time
 from ultralytics import YOLO
 from src.voice_alert import speak
-from src.distance_estimator import estimate_distance
+from src.distance_estimator import estimate_distance,smooth_distance
+
+
 
 # Load model
 model = YOLO("models/best.pt")
@@ -13,6 +15,7 @@ cap = cv2.VideoCapture(0)
 last_spoken_time = 0
 last_message = ""
 
+distance_history = {}
 while True:
 
     ret, frame = cap.read()
@@ -64,11 +67,21 @@ while True:
             else:
                 direction = "FRONT"
 
-            # distance estimation
+            # distance estimation both height and width are used
             box_height = y2 - y1
-            distance = estimate_distance(box_height)
+            box_width = x2 - x1
+            effective_size = (box_height*box_width)**0.5
+            
+            # track id for smoothing
+            track_id = int(closest_box.id[0]) if closest_box.id is not None else -1
+            raw_dist = estimate_distance(effective_size, label)
+            distance = smooth_distance(track_id, raw_dist,distance_history)
 
-            text = f"{label} {direction} {distance}"
+            if distance is not None:
+                
+                text = f"{label} {direction} at {distance} meters"
+            else:
+                text = f"{label} at {direction}"    
 
             # voice cooldown
             if text != last_message and time.time() - last_spoken_time > 2:
