@@ -1,41 +1,46 @@
-from src.utils import OBJECT_HEIGHTS, FOCAL_LENGTH, MAX_DISTANCE
+# def estimate_distance(box_height):
 
-def estimate_distance(efficient_size, object_name):
+#     # Approximate parameters
+#     focal_length = 700
+#     real_object_height = 1.7   # meters (approx human height)
 
-    # Approximate parameters
-    focal_length = FOCAL_LENGTH
-    
-    # Handle potentially lowercase labels from models
-    normalized_name = object_name
-    real_object_height = OBJECT_HEIGHTS.get(normalized_name)
-    
-    if real_object_height is None:
-        return None
-    
-    try:
-        # Convert box_height to float if it's a tensor or numpy array
-        efficient_size = float(efficient_size)
-    except (TypeError, ValueError):
-        return None
-    
-    if efficient_size <= 0:
+#     if box_height == 0:
+#         return 0
+
+#     distance = (real_object_height * focal_length) / box_height
+
+#     return distance
+
+def estimate_distance(box_height, label):
+
+    focal_length = 700
+
+    # Real object heights in meters
+    REAL_HEIGHTS = {
+        "Animal": 1.0,
+        "Crosswalk": 0.01,
+        "Obstacle": 0.5,
+        "Over-bridge": 5.0,
+        "Person": 1.7,
+        "Pole": 3.0,
+        "Pothole": 0.1,
+        "Railway": 0.2,
+        "Road-barrier": 1.0,
+        "Sidewalk": 0.15,
+        "Stairs": 0.2,
+        "Traffic-light": 0.8,
+        "Traffic-sign": 0.7,
+        "Train": 4.0,
+        "Tree": 5.0,
+        "Vehicle": 1.5
+    }
+
+    # Default height if label not found
+    real_object_height = REAL_HEIGHTS.get(label, 0.5)
+
+    if box_height == 0:
         return 0
-    
-    if efficient_size < 20: # Minimal detectable box height to avoid noise
-        return None
 
-    distance = (real_object_height * focal_length) / efficient_size
-    if distance > MAX_DISTANCE:
-        return None
-    
-    return round(float(distance), 2)
+    distance = (real_object_height * focal_length) / box_height
 
-
-def smooth_distance(track_id, new_distance, history, alpha=0.3):
-    if new_distance is None:
-        return history.get(track_id)
-
-    prev = history.get(track_id, new_distance)
-    smoothed = alpha * new_distance + (1 - alpha) * prev
-    history[track_id] = smoothed
-    return round(smoothed, 2)
+    return round(distance, 2)

@@ -1,56 +1,168 @@
+# import pyttsx3
+# import threading
+# import queue
+
+# engine = pyttsx3.init()
+
+# speech_queue = queue.Queue()
+
+
+# def voice_worker():
+#     while True:
+#         text = speech_queue.get()
+#         if text is None:
+#             break
+
+#         engine.say(text)
+#         engine.runAndWait()
+#         speech_queue.task_done()
+
+
+# thread = threading.Thread(target=voice_worker, daemon=True)
+# thread.start()
+
+
+# def speak(text):
+#     speech_queue.put(text)
+
+import cv2
 import pyttsx3
 import threading
 import queue
 import time
+from ultralytics import YOLO
+
+# ---------------- VOICE ----------------
+
+engine = pyttsx3.init()
 
 speech_queue = queue.Queue()
 
-def get_best_voice(engine):
-    """Try to find a female/clear voice."""
-    voices = engine.getProperty('voices')
-    for voice in voices:
-        name = voice.name.lower()
-        if "female" in name or "zira" in name or "hazel" in name:
-            return voice.id
-    return voices[0].id if voices else None
-
 def voice_worker():
-    # Initialize engine inside the thread for better reliability on Windows
-    try:
-        engine = pyttsx3.init()
-        
-        # Enhanced voice properties
-        engine.setProperty('rate', 155)    # Slightly faster for responsiveness
-        engine.setProperty('volume', 0.6)  # Set to 60% as requested
-        
-        best_voice = get_best_voice(engine)
-        if best_voice:
-            engine.setProperty('voice', best_voice)
-    except Exception as e:
-        print(f"Voice Init Error: {e}")
-        return
 
     while True:
-        try:
-            text = speech_queue.get()
-            if text is None:
-                break
-            
-            # Speak only the latest message if multiple are queued
-            while not speech_queue.empty():
-                text = speech_queue.get_nowait()
-                if text is None: return
 
-            engine.say(text)
-            engine.runAndWait()
-            speech_queue.task_done()
-        except Exception as e:
-            print(f"Voice Worker Error: {e}")
-            time.sleep(0.1)
+        text = speech_queue.get()
 
-thread = threading.Thread(target=voice_worker, daemon=True)
-thread.start()
+        if text is None:
+            break
+
+        engine.say(text)
+        engine.runAndWait()
+
+threading.Thread(target=voice_worker, daemon=True).start()
 
 def speak(text):
-    """Add text to speech queue."""
+
+    # old voice remove
+    while not speech_queue.empty():
+        try:
+            speech_queue.get_nowait()
+        except:
+            pass
+
     speech_queue.put(text)
+
+# ---------------- MODEL ----------------
+
+model = YOLO("yolov8n.pt")
+
+# ---------------- CAMERA ----------------
+
+cap = cv2.VideoCapture(0)
+
+# ---------------- SETTINGS ----------------
+
+KNOWN_WIDTH = 14      # cm (example object width)
+FOCAL_LENGTH = 700    # adjust after calibration
+
+last_spoken = ""
+last_time = 0
+
+while True:
+
+    ret, frame = cap.read()
+
+    if not ret:
+        break
+
+    results = model(frame)
+
+    nearest_object = None
+    nearest_distance = 999999
+
+    for r in results:
+
+        boxes = r.boxes
+
+        for box in boxes:
+
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+
+            w = x2 - x1
+
+            cls = int(box.cls[0])
+
+            label = model.names[cls]
+
+            # ---------------- DISTANCE ----------------
+
+            # distance = (real width × focal length) / pixel width
+            distance = (KNOWN_WIDTH * FOCAL_LENGTH) / w
+
+            # ---------------- DRAW ----------------
+
+            cv2.rectangle(
+                frame,
+                (x1, y1),
+                (x2, y2),
+                (0,255,0),
+                2
+            )
+
+            cv2.putText(
+                frame,
+                f"{label} {distance:.1f} cm",
+                (x1, y1-10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0,255,0),
+                2
+            )
+
+            # nearest object
+            if distance < nearest_distance:
+
+                nearest_distance = distance
+                nearest_object = label
+
+    # ---------------- VOICE ALERT ----------------
+
+    current_time = time.time()
+
+    # Speak only if object comes close
+    if nearest_object and nearest_distance < 80:
+
+        text = f"{nearest_object} is {int(nearest_distance)} centimeters away"
+
+        if (
+            text != last_spoken
+            or current_time - last_time > 3
+        ):
+
+            speak(text)
+
+            last_spoken = text
+            last_time = current_time
+
+    cv2.imshow("Live Object Distance Detection", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# ---------------- CLEANUP ----------------
+
+speech_queue.put(None)
+
+cap.release()
+cv2.destroyAllWindows()
